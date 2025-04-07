@@ -119,22 +119,6 @@
             width: 100%;
             height: 150px;
         }
-
-        .yellow-box {
-            background-color: yellow;
-            padding: 10px;
-            margin: 20px 0;
-            border-radius: 5px;
-            text-align: center;
-        }
-
-        .delete-button {
-            background-color: red;
-        }
-
-        .delete-button:hover {
-            background-color: darkred;
-        }
     </style>
 </head>
 <body>
@@ -171,12 +155,6 @@
         <p id="user-info"></p>
         <h3>Your Sites:</h3>
         <div id="site-list"></div>
-
-        <!-- Yellow box with the message -->
-        <div class="yellow-box">
-            Edit site button had to go. To update your site, delete it and re-create it. We know it's not ideal, but it'll have to do.
-        </div>
-
         <button id="create-site-button">Create a New Site</button>
         <div id="create-site-form">
             <h3>Create a New Site</h3>
@@ -201,37 +179,70 @@
             return btoa(data);  // This will Base64 encode the data
         }
 
-        // Handle login form submission
-        document.getElementById('login-form-submit').addEventListener('submit', function (e) {
+      // Handle login form submission
+document.getElementById('login-form-submit').addEventListener('submit', function (e) {
+    e.preventDefault();
+
+    const username = document.getElementById('login-username').value;
+    const password = document.getElementById('login-password').value;
+
+    fetch(`${baseUrl}/loginUser`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ username, password }),
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('Login failed');
+        }
+        return response.json();  // Only try to parse as JSON if the response is OK
+    })
+    .then(data => {
+        // Check if the user is banned
+        if (data.user && data.user.isBanned) {
+            alert('Server End Task Failed Successfully.');
+             // Stop further execution if banned
+        }
+
+        if (data.message === 'Login successful') {
+            loggedInUsername = username;
+            loggedInPassword = password;  // Store password for further use
+            document.getElementById('login-form').style.display = 'none';
+            document.getElementById('signup-form').style.display = 'none';
+            document.getElementById('dashboard').style.display = 'block';
+            document.getElementById('user-info').textContent = `Logged in as ${username}`;
+            loadUserSites();
+        } else {
+            alert(data.error || 'Login failed');
+        }
+    })
+    .catch(error => alert('Error: ' + error));
+});
+
+        // Handle sign-up form submission
+        document.getElementById('signup-form-submit').addEventListener('submit', function (e) {
             e.preventDefault();
 
-            const username = document.getElementById('login-username').value;
-            const password = document.getElementById('login-password').value;
+            const username = document.getElementById('signup-username').value;
+            const password = document.getElementById('signup-password').value;
 
-            fetch(`${baseUrl}/loginUser`, {
+            fetch(`${baseUrl}/createUser`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ username, password }),
+                body: JSON.stringify({ username, password, isAdmin: false, isBanned: false }),
             })
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error('Login failed');
-                }
-                return response.json();  // Only try to parse as JSON if the response is OK
-            })
+            .then(response => response.json())
             .then(data => {
-                if (data.message === 'Login successful') {
-                    loggedInUsername = username;
-                    loggedInPassword = password;  // Store password for further use
-                    document.getElementById('login-form').style.display = 'none';
+                if (data.message === 'User created successfully') {
+                    alert('Account created! You can now log in.');
                     document.getElementById('signup-form').style.display = 'none';
-                    document.getElementById('dashboard').style.display = 'block';
-                    document.getElementById('user-info').textContent = `Logged in as ${username}`;
-                    loadUserSites();
+                    document.getElementById('login-form').style.display = 'block';
                 } else {
-                    alert(data.error || 'Login failed');
+                    alert(data.error || 'Account creation failed');
                 }
             })
             .catch(error => alert('Error: ' + error));
@@ -258,10 +269,14 @@
 
                         const deleteButton = document.createElement('button');
                         deleteButton.textContent = 'Delete';
-                        deleteButton.classList.add('delete-button');
                         deleteButton.addEventListener('click', () => deleteSite(site.address));
 
+                        const updateButton = document.createElement('button');
+                        updateButton.textContent = 'Update';
+                        updateButton.addEventListener('click', () => updateSiteContent(site.address));
+
                         siteItem.appendChild(deleteButton);
+                        siteItem.appendChild(updateButton);
                         siteListContainer.appendChild(siteItem);
                     });
                 })
@@ -282,7 +297,7 @@
             .then(data => {
                 if (data.message.includes('deleted successfully')) {
                     alert(`Site ${siteAddress} deleted successfully`);
-                    loadUserSites();  // Refresh the list after deleting
+                    loadUserSites();  // Reload the site list
                 } else {
                     alert(data.error || 'Error deleting site');
                 }
@@ -290,48 +305,92 @@
             .catch(error => alert('Error: ' + error));
         }
 
-        // Handle site creation form submission (Restored original logic)
+       // Update the content of a site
+function updateSiteContent(siteAddress) {
+    const content = prompt('Enter new content for the site:');
+    if (content) {
+        // Prepare the payload with the username, password, and new content
+        const payload = {
+            username: loggedInUsername,
+            password: loggedInPassword,
+            content: encodeBase64(content)
+        };
+
+        fetch(`${baseUrl}/updateSite/${siteAddress}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(payload)  // Send the payload as JSON
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.message === 'Site updated successfully') {
+                alert('Site content updated successfully');
+                loadUserSites();  // Reload the site list
+            } else {
+                alert(data.error || 'Error updating site. If this issue persists, delete your site, and create a new site with the same name but with your new content.');
+            }
+        })
+        .catch(error => alert('Error: ' + error));
+    }
+}
+
+        // Show the Create Site form
+        document.getElementById('create-site-button').addEventListener('click', function () {
+            document.getElementById('create-site-form').style.display = 'block';
+        });
+
+        // Cancel creating a site
+        document.getElementById('cancel-create-site').addEventListener('click', function () {
+            document.getElementById('create-site-form').style.display = 'none';
+        });
+
+        // Handle creating a new site
         document.getElementById('create-site-form-submit').addEventListener('submit', function (e) {
             e.preventDefault();
 
             const siteAddress = document.getElementById('new-site-address').value;
-            const siteContent = document.getElementById('new-site-content').value;
+            const content = document.getElementById('new-site-content').value;
 
-            fetch(`${baseUrl}/uploadSite`, {
+            const siteData = {
+                address: siteAddress,
+                owner: loggedInUsername,
+                data: encodeBase64(content),  // Base64-encoded content
+                siteBanned: false,
+                viewCount: 1,
+                createdAt: new Date().toISOString(),
+                lastUpdated: new Date().toISOString()
+            };
+
+            fetch(`${baseUrl}/createSite`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
+                    'username': loggedInUsername,
+                    'password': loggedInPassword
                 },
-                body: JSON.stringify({
-                    address: siteAddress,
-                    content: siteContent,
-                    owner: loggedInUsername,
-                }),
+                body: JSON.stringify(siteData)
             })
             .then(response => response.json())
             .then(data => {
-                if (data.message === 'Site uploaded successfully') {
-                    loadUserSites();
-                    alert('Site uploaded successfully');
+                if (data.message === 'Site created successfully') {
+                    alert('Site created successfully');
+                    loadUserSites();  // Reload the site list
                     document.getElementById('create-site-form').style.display = 'none';
-                    document.getElementById('create-site-button').style.display = 'block';
                 } else {
-                    alert(data.error || 'Error uploading site');
+                    alert(data.error || 'Error creating site');
                 }
             })
             .catch(error => alert('Error: ' + error));
         });
 
-        // Show the create site form
-        document.getElementById('create-site-button').addEventListener('click', function () {
-            document.getElementById('create-site-form').style.display = 'block';
-            document.getElementById('create-site-button').style.display = 'none';
-        });
-
-        // Cancel site creation
-        document.getElementById('cancel-create-site').addEventListener('click', function () {
-            document.getElementById('create-site-form').style.display = 'none';
-            document.getElementById('create-site-button').style.display = 'block';
+        // Logout
+        document.getElementById('logout-button').addEventListener('click', function () {
+            loggedInUsername = '';
+            loggedInPassword = '';
+            document.getElementById('dashboard').style.display = 'none';
+            document.getElementById('login-form').style.display = 'block';
         });
 
         // Show the sign-up form
@@ -344,15 +403,6 @@
         document.getElementById('show-login-form').addEventListener('click', function () {
             document.getElementById('signup-form').style.display = 'none';
             document.getElementById('login-form').style.display = 'block';
-        });
-
-        // Handle logout
-        document.getElementById('logout-button').addEventListener('click', function () {
-            loggedInUsername = '';
-            loggedInPassword = '';
-            document.getElementById('login-form').style.display = 'block';
-            document.getElementById('signup-form').style.display = 'none';
-            document.getElementById('dashboard').style.display = 'none';
         });
     </script>
 </body>
