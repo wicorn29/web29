@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Web29 Browser</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f0f0f0;
+        }
+
+        #top-bar {
+            background-color: #333;
+            padding: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        #url-bar-container {
+            display: flex;
+            align-items: center;
+            flex-grow: 1;
+        }
+
+        #url-bar {
+            width: 80%;
+            padding: 10px;
+            border-radius: 5px;
+            border: none;
+        }
+
+        #go-button {
+            padding: 10px 20px;
+            background-color: #007BFF;
+            border: none;
+            color: white;
+            cursor: pointer;
+            border-radius: 5px;
+        }
+
+        #go-button:hover {
+            background-color: #0056b3;
+        }
+
+        #info-icon {
+            font-size: 20px;
+            color: #007BFF;
+            cursor: pointer;
+            margin-left: 10px;
+        }
+
+        #metadata-popup {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            z-index: 100;
+            width: 300px;
+        }
+
+        #metadata-popup h3 {
+            margin: 0;
+            padding-bottom: 10px;
+        }
+
+        #metadata-popup p {
+            margin: 5px 0;
+        }
+
+        #report-button {
+            background-color: #ccc;
+            color: white;
+            padding: 5px 10px;
+            cursor: not-allowed;
+            border: none;
+            border-radius: 5px;
+            margin-top: 10px;
+        }
+
+        #report-button:hover {
+            background-color: #999;
+        }
+
+        iframe {
+            width: 100%;
+            height: 80vh;
+            border: none;
+        }
+
+        #overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 99;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="overlay"></div>
+
+    <div id="top-bar">
+        <div id="url-bar-container">
+            <input type="text" id="url-bar" placeholder="Enter site address (e.g. example.com)" />
+            <button id="go-button">Go</button>
+            <span id="info-icon">&#9432;</span>
+        </div>
+    </div>
+
+    <iframe id="browser-iframe" src=""></iframe>
+
+    <div id="metadata-popup">
+        <h3>Site Metadata</h3>
+        <p><strong>Address:</strong> <span id="site-address">Loading...</span></p>
+        <p><strong>Owner:</strong> <span id="site-owner">Loading...</span></p>
+        <p><strong>Banned:</strong> <span id="site-banned">Loading...</span></p>
+        <p><strong>View Count:</strong> <span id="view-count">Loading...</span></p>
+        <p><strong>Created At:</strong> <span id="created-at">Loading...</span></p>
+        <p><strong>Last Updated:</strong> <span id="last-updated">Loading...</span></p>
+        <button id="report-button" disabled>Report</button>
+    </div>
+
+<script>
+    const goButton = document.getElementById('go-button');
+    const urlBar = document.getElementById('url-bar');
+    const iframe = document.getElementById('browser-iframe');
+    const infoIcon = document.getElementById('info-icon');
+    const metadataPopup = document.getElementById('metadata-popup');
+    const overlay = document.getElementById('overlay');
+    const reportButton = document.getElementById('report-button');
+    const siteAddress = document.getElementById('site-address');
+    const siteOwner = document.getElementById('site-owner');
+    const siteBanned = document.getElementById('site-banned');
+    const viewCount = document.getElementById('view-count');
+    const createdAt = document.getElementById('created-at');
+    const lastUpdated = document.getElementById('last-updated');
+
+    // Append 'w29://' to the entered URL, but send the clean address to the server
+    function normalizeUrl(url) {
+        if (!url.startsWith("w29://")) {
+            url = "w29://" + url;
+        }
+        return url.replace(/^w29:\/\//, '');
+    }
+
+    // Toggle Metadata Popup
+    infoIcon.addEventListener('click', () => {
+        metadataPopup.style.display = 'block';
+        overlay.style.display = 'block';
+        document.body.style.pointerEvents = 'none'; // Block interactions with the body
+    });
+
+    // Close Metadata Popup if clicking outside
+    window.addEventListener('click', (event) => {
+        if (!metadataPopup.contains(event.target) && !infoIcon.contains(event.target)) {
+            metadataPopup.style.display = 'none';
+            overlay.style.display = 'none';
+            document.body.style.pointerEvents = 'auto'; // Restore interactions with the body
+        }
+    });
+
+    // Fetch and display site data with updated metadata
+    async function loadSiteData(address) {
+        try {
+            const cleanedAddress = normalizeUrl(address);
+            const response = await fetch(`http://192.168.1.65:3000/getSiteByAddress/${cleanedAddress}`);
+
+            if (!response.ok) {
+                iframe.srcdoc = `<html><body><h2>:( Something went wrong when loading the site: ${address}. An error has occurred. The error is "${response.statusText}".</h2></body></html>`;
+                return;
+            }
+
+            const site = await response.json();
+
+            if (site.error) {
+                iframe.srcdoc = `<html><body><h2>:( Something went wrong when loading the site: ${address}. An error has occurred. The error is "${site.error}".</h2></body></html>`;
+                return;
+            }
+
+            const decodedData = atob(site.data);
+            iframe.srcdoc = decodedData;
+
+            siteAddress.textContent = site.address;
+            siteOwner.textContent = site.owner;
+            siteBanned.textContent = site.siteBanned ? 'Yes' : 'No';
+            viewCount.textContent = site.viewCount;
+            createdAt.textContent = new Date(site.createdAt).toLocaleString();
+            lastUpdated.textContent = new Date(site.lastUpdated).toLocaleString();
+        } catch (error) {
+            iframe.srcdoc = `<html><body><h2>:( Something went wrong when loading the site: ${address}. An error has occurred. The error is "${error.message}".</h2></body></html>`;
+        }
+    }
+
+    // Handle the Go button click
+    goButton.addEventListener('click', () => {
+        const address = urlBar.value.trim();
+        if (address) {
+            const displayAddress = address.startsWith("w29://") ? address : "w29://" + address;
+            urlBar.value = displayAddress;  // Show the full URL with w29://
+            loadSiteData(displayAddress);   // Use the cleaned address for the server request
+        }
+    });
+</script>
+
+</body>
+</html>
