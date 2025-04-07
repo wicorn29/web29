@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Web29 Studio</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f0f0f0;
+        }
+
+        #top-bar {
+            background-color: #333;
+            padding: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        #url-bar-container {
+            display: flex;
+            align-items: center;
+            flex-grow: 1;
+        }
+
+        #url-bar {
+            width: 80%;
+            padding: 10px;
+            border-radius: 5px;
+            border: none;
+        }
+
+        #go-button {
+            padding: 10px 20px;
+            background-color: #007BFF;
+            border: none;
+            color: white;
+            cursor: pointer;
+            border-radius: 5px;
+        }
+
+        #go-button:hover {
+            background-color: #0056b3;
+        }
+
+        #login-form, #signup-form {
+            width: 300px;
+            margin: 100px auto;
+            padding: 20px;
+            background-color: white;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+
+        input[type="text"], input[type="password"], input[type="file"] {
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+        }
+
+        button {
+            width: 100%;
+            padding: 10px;
+            background-color: #007BFF;
+            border: none;
+            color: white;
+            cursor: pointer;
+            border-radius: 5px;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+
+        #dashboard {
+            width: 80%;
+            margin: 50px auto;
+            padding: 20px;
+            background-color: white;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+
+        h2 {
+            text-align: center;
+        }
+
+        #site-list {
+            margin-top: 20px;
+        }
+
+        .site-item {
+            padding: 10px;
+            background-color: #f9f9f9;
+            border-radius: 5px;
+            margin: 5px 0;
+            box-shadow: 0 0 5px rgba(0, 0, 0, 0.1);
+        }
+
+        #create-site-form {
+            display: none;
+            margin-top: 20px;
+            padding: 20px;
+            background-color: #f9f9f9;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+
+        #create-site-form label {
+            font-weight: bold;
+        }
+
+        #create-site-form textarea {
+            width: 100%;
+            height: 150px;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="top-bar">
+        <h2 style="color:white;">Web29 Studio</h2>
+    </div>
+
+    <!-- Login Form -->
+    <div id="login-form">
+        <h3>Login</h3>
+        <form id="login-form-submit">
+            <input type="text" id="login-username" placeholder="Username" required>
+            <input type="password" id="login-password" placeholder="Password" required>
+            <button type="submit">Login</button>
+        </form>
+        <p>Don't have an account? <a href="javascript:void(0);" id="show-signup-form">Sign Up</a></p>
+    </div>
+
+    <!-- Sign Up Form -->
+    <div id="signup-form" style="display:none;">
+        <h3>Sign Up</h3>
+        <form id="signup-form-submit">
+            <input type="text" id="signup-username" placeholder="Username" required>
+            <input type="password" id="signup-password" placeholder="Password" required>
+            <button type="submit">Sign Up</button>
+        </form>
+        <p>Already have an account? <a href="javascript:void(0);" id="show-login-form">Login</a></p>
+    </div>
+
+    <!-- Dashboard -->
+    <div id="dashboard" style="display:none;">
+        <h2>Welcome to Web29 Studio!</h2>
+        <p id="user-info"></p>
+        <h3>Your Sites:</h3>
+        <div id="site-list"></div>
+        <button id="create-site-button">Create a New Site</button>
+        <div id="create-site-form">
+            <h3>Create a New Site</h3>
+            <label>Enter the site address (e.g., site.com):</label>
+            <form id="create-site-form-submit">
+                <input type="text" id="new-site-address" placeholder="Site Address" required>
+                <textarea id="new-site-content" placeholder="Enter the content for the site" required></textarea>
+                <button type="submit">Create Site</button>
+            </form>
+            <button id="cancel-create-site">Cancel</button>
+        </div>
+        <button id="logout-button">Logout</button>
+    </div>
+
+    <script>
+        const baseUrl = 'https://web29.wicorn29.net';  // Replace with your server's IP address or domain
+        let loggedInUsername = '';  // Store the logged-in username
+        let loggedInPassword = '';  // Store the logged-in password
+
+        // Function to handle Base64 encoding
+        function encodeBase64(data) {
+            return btoa(data);  // This will Base64 encode the data
+        }
+
+      // Handle login form submission
+document.getElementById('login-form-submit').addEventListener('submit', function (e) {
+    e.preventDefault();
+
+    const username = document.getElementById('login-username').value;
+    const password = document.getElementById('login-password').value;
+
+    fetch(`${baseUrl}/loginUser`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ username, password }),
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('Login failed');
+        }
+        return response.json();  // Only try to parse as JSON if the response is OK
+    })
+    .then(data => {
+        // Check if the user is banned
+        if (data.user && data.user.isBanned) {
+            alert('Server End Task Failed Successfully.');
+             // Stop further execution if banned
+        }
+
+        if (data.message === 'Login successful') {
+            loggedInUsername = username;
+            loggedInPassword = password;  // Store password for further use
+            document.getElementById('login-form').style.display = 'none';
+            document.getElementById('signup-form').style.display = 'none';
+            document.getElementById('dashboard').style.display = 'block';
+            document.getElementById('user-info').textContent = `Logged in as ${username}`;
+            loadUserSites();
+        } else {
+            alert(data.error || 'Login failed');
+        }
+    })
+    .catch(error => alert('Error: ' + error));
+});
+
+        // Handle sign-up form submission
+        document.getElementById('signup-form-submit').addEventListener('submit', function (e) {
+            e.preventDefault();
+
+            const username = document.getElementById('signup-username').value;
+            const password = document.getElementById('signup-password').value;
+
+            fetch(`${baseUrl}/createUser`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ username, password, isAdmin: false, isBanned: false }),
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.message === 'User created successfully') {
+                    alert('Account created! You can now log in.');
+                    document.getElementById('signup-form').style.display = 'none';
+                    document.getElementById('login-form').style.display = 'block';
+                } else {
+                    alert(data.error || 'Account creation failed');
+                }
+            })
+            .catch(error => alert('Error: ' + error));
+        });
+
+        // Load the user's sites and display them
+        function loadUserSites() {
+            fetch(`${baseUrl}/getAllSites`)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Error fetching sites');
+                    }
+                    return response.json();
+                })
+                .then(sites => {
+                    const userSites = sites.filter(site => site.owner === loggedInUsername);
+                    const siteListContainer = document.getElementById('site-list');
+                    siteListContainer.innerHTML = '';  // Clear the site list
+
+                    userSites.forEach(site => {
+                        const siteItem = document.createElement('div');
+                        siteItem.classList.add('site-item');
+                        siteItem.textContent = site.address;
+
+                        const deleteButton = document.createElement('button');
+                        deleteButton.textContent = 'Delete';
+                        deleteButton.addEventListener('click', () => deleteSite(site.address));
+
+                        const updateButton = document.createElement('button');
+                        updateButton.textContent = 'Update';
+                        updateButton.addEventListener('click', () => updateSiteContent(site.address));
+
+                        siteItem.appendChild(deleteButton);
+                        siteItem.appendChild(updateButton);
+                        siteListContainer.appendChild(siteItem);
+                    });
+                })
+                .catch(error => alert('Error: ' + error));
+        }
+
+        // Delete a site
+        function deleteSite(siteAddress) {
+            fetch(`${baseUrl}/deleteSite/${siteAddress}`, {
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'username': loggedInUsername,
+                    'password': loggedInPassword
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.message.includes('deleted successfully')) {
+                    alert(`Site ${siteAddress} deleted successfully`);
+                    loadUserSites();  // Reload the site list
+                } else {
+                    alert(data.error || 'Error deleting site');
+                }
+            })
+            .catch(error => alert('Error: ' + error));
+        }
+
+       // Update the content of a site
+function updateSiteContent(siteAddress) {
+    const content = prompt('Enter new content for the site:');
+    if (content) {
+        // Prepare the payload with the username, password, and new content
+        const payload = {
+            username: loggedInUsername,
+            password: loggedInPassword,
+            content: encodeBase64(content)
+        };
+
+        fetch(`${baseUrl}/updateSite/${siteAddress}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(payload)  // Send the payload as JSON
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.message === 'Site updated successfully') {
+                alert('Site content updated successfully');
+                loadUserSites();  // Reload the site list
+            } else {
+                alert(data.error || 'Error updating site. If this issue persists, delete your site, and create a new site with the same name but with your new content.');
+            }
+        })
+        .catch(error => alert('Error: ' + error));
+    }
+}
+
+        // Show the Create Site form
+        document.getElementById('create-site-button').addEventListener('click', function () {
+            document.getElementById('create-site-form').style.display = 'block';
+        });
+
+        // Cancel creating a site
+        document.getElementById('cancel-create-site').addEventListener('click', function () {
+            document.getElementById('create-site-form').style.display = 'none';
+        });
+
+        // Handle creating a new site
+        document.getElementById('create-site-form-submit').addEventListener('submit', function (e) {
+            e.preventDefault();
+
+            const siteAddress = document.getElementById('new-site-address').value;
+            const content = document.getElementById('new-site-content').value;
+
+            const siteData = {
+                address: siteAddress,
+                owner: loggedInUsername,
+                data: encodeBase64(content),  // Base64-encoded content
+                siteBanned: false,
+                viewCount: 1,
+                createdAt: new Date().toISOString(),
+                lastUpdated: new Date().toISOString()
+            };
+
+            fetch(`${baseUrl}/createSite`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'username': loggedInUsername,
+                    'password': loggedInPassword
+                },
+                body: JSON.stringify(siteData)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.message === 'Site created successfully') {
+                    alert('Site created successfully');
+                    loadUserSites();  // Reload the site list
+                    document.getElementById('create-site-form').style.display = 'none';
+                } else {
+                    alert(data.error || 'Error creating site');
+                }
+            })
+            .catch(error => alert('Error: ' + error));
+        });
+
+        // Logout
+        document.getElementById('logout-button').addEventListener('click', function () {
+            loggedInUsername = '';
+            loggedInPassword = '';
+            document.getElementById('dashboard').style.display = 'none';
+            document.getElementById('login-form').style.display = 'block';
+        });
+
+        // Show the sign-up form
+        document.getElementById('show-signup-form').addEventListener('click', function () {
+            document.getElementById('login-form').style.display = 'none';
+            document.getElementById('signup-form').style.display = 'block';
+        });
+
+        // Show the login form
+        document.getElementById('show-login-form').addEventListener('click', function () {
+            document.getElementById('signup-form').style.display = 'none';
+            document.getElementById('login-form').style.display = 'block';
+        });
+    </script>
+</body>
+</html>
