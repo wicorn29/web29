@@ -176,7 +176,7 @@
     async function loadSiteData(address) {
         try {
             const cleanedAddress = normalizeUrl(address);
-            const response = await fetch(`http://web29.wicorn29.net/getSiteByAddress/${cleanedAddress}`);
+            const response = await fetch(`https://web29.wicorn29.net/getSiteByAddress/${cleanedAddress}`);
 
             if (!response.ok) {
                 iframe.srcdoc = `<html><body><h2>:( Something went wrong when loading the site: ${address}. An error has occurred. The error is "${response.statusText}".</h2></body></html>`;
